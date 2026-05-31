@@ -136,7 +136,7 @@ python export_cluster_profiles.py "input_videos/longvid.mp4" --cache "input_vide
 Person count for clustering is controlled in `face_cluster.py`:
 
 ```python
-KNOWN_N_PERSONS = 26   # set to None for auto-detect
+KNOWN_N_PERSONS = 36   # set to None for auto-detect
 ```
 
 ### Step 3 — best-face registration (Best-Face venv)
@@ -172,7 +172,7 @@ python run_face_pipeline.py profile-clustering/input_videos/longvid.mp4 `
 
 python run_face_pipeline.py profile-clustering/input_videos/longvid.mp4 `
   --cache profile-clustering/input_videos/longvid_detections.pkl `
-  --known-n 26 `
+  --known-n 36 `
   --json
 ```
 
@@ -223,7 +223,7 @@ curl -X POST http://localhost:8000/api/v1/register/video `
   -d '{
     "job_id": "job_longvid",
     "video_path": "C:/Users/Kulkarni/checkidk/profile-clustering/input_videos/longvid.mp4",
-    "known_n_persons": 26
+    "known_n_persons": 36
   }'
 ```
 
@@ -260,7 +260,7 @@ Clustering tuning in `profile-clustering/face_cluster.py`:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `KNOWN_N_PERSONS` | `26` | Expected person count (`None` = auto) |
+| `KNOWN_N_PERSONS` | `36` | Expected person count (`None` = auto) |
 | `MIN_FACE_QUALITY` | `4.0` | Min quality to keep a detection |
 | `HDBSCAN_EPSILON` | per engine | Cluster merge epsilon |
 
