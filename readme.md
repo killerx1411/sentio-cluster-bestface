@@ -25,8 +25,7 @@ your_video.mp4  →  input_videos/
 ```
 .
 ├── README.md
-├── run_face_pipeline.ps1      # Steps 1–3 (two venvs; recommended)
-├── run_face_pipeline.py         # Steps 1–3 in one process (single venv only)
+
 ├── profile-clustering/
 │   ├── face_cluster.py          # detection + clustering
 │   ├── export_for_bestface.py   # steps 1+2 → JSON for Best-Face
@@ -95,7 +94,7 @@ KNOWN_N_PERSONS = 26   # your headcount; use None for auto-detect
 
 Re-run clustering whenever you change this value.
 
-If you use `run_face_pipeline.ps1`, also update the `-KnownN` parameter to match (it is informational today; clustering reads `face_cluster.py`).
+
 
 ### 4. AdaFace setup (required for embedding quality)
 
@@ -160,23 +159,9 @@ cd ..
 
 ---
 
-## How to run the full pipeline
 
-Use your video stem in place of `my_classroom` below.
 
-### Step 1+2 — Face detection and clustering
-
-From the **repo root**, using the orchestrator (recommended):
-
-```powershell
-.\run_face_pipeline.ps1 `
-  -Video "profile-clustering\input_videos\my_classroom.mp4" `
-  -Cache "profile-clustering\input_videos\my_classroom_detections.pkl" `
-  -JsonOut "profile-clustering\input_videos\my_classroom_clusters.json" `
-  -KnownN 26
-```
-
-Or manually in the **profile-clustering** venv:
+manually in the **profile-clustering** venv:
 
 ```powershell
 cd profile-clustering
@@ -193,7 +178,7 @@ python export_for_bestface.py "input_videos/my_classroom.mp4" `
 
 ### Step 3 — Best-face registration
 
-If you used `run_face_pipeline.ps1`, step 3 already ran. Otherwise, in the **Best-Face** venv:
+ in the **Best-Face** venv:
 
 ```powershell
 cd Best-Face\face_registration
