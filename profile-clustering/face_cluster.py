@@ -1,4 +1,6 @@
 """
+
+Working file for Known N
 face_cluster.py  —  Step 1 & 2 of the profile-extraction pipeline
 ====================================================================
 WHAT THIS FILE DOES:
@@ -6,7 +8,7 @@ WHAT THIS FILE DOES:
                        using a stacked multi-detector pipeline
   2. Face Clustering — groups detections of the same person together
                        using HDBSCAN on cosine distance with AdaFace embeddings
-
+W
 CLUSTERING APPROACH:
   Uses hdbscan.HDBSCAN with:
     - Precomputed cosine distance matrix
@@ -205,7 +207,7 @@ HDBSCAN_EPSILON = {
 # KNOWN_N_PERSONS: set this to the number of people you know are in the
 # video. The algorithm will produce exactly this many clusters.
 # Set to None to use AUTO mode (finds the elbow in the merge tree).
-KNOWN_N_PERSONS = 4   # set to None to auto-detect
+KNOWN_N_PERSONS = None   # set to None to auto-detect
 
 # AUTO mode: when KNOWN_N_PERSONS is None, we walk down the merge tree
 # and stop where the next merge would jump by more than MERGE_JUMP_FACTOR
@@ -744,85 +746,121 @@ def _stage2_merge_subclusters(
     """
     Stage 2: Agglomerative merge of HDBSCAN sub-clusters.
 
-    Takes the over-split HDBSCAN labels (~99 sub-clusters) and merges
-    them down to the correct number of people using AgglomerativeClustering
-    with COMPLETE linkage on the centroid distance matrix.
+    n_target is not None  →  merge to exactly that many clusters (unchanged).
+    n_target is None      →  auto-detect k using a two-phase strategy:
 
-    Complete linkage: two groups merge only when the farthest pair of
-    their centroids is within threshold. This prevents chain-linking
-    (the mega-cluster collapse that greedy single-linkage caused).
+      Phase A — Trust HDBSCAN (no merge):
+        If n_sub ≤ TRUST_THRESHOLD and the pairwise centroid distances have
+        no clear bimodal gap (gap_ratio < GAP_RATIO_THRESH), every sub-cluster
+        is already a distinct person — return labels as-is.
 
-    n_target:
-      - int  → produce exactly n_target clusters (set KNOWN_N_PERSONS)
-      - None → auto-detect using elbow in merge distances
+        gap_ratio = biggest_single_gap / mean_pairwise_distance
+        A low ratio means all centroids are roughly equidistant (all different
+        people). A high ratio means there are two modes (tight same-person pairs
+        + wide different-person pairs), which signals over-splitting.
+
+      Phase B — Distribution-gap merge (over-split detected):
+        Sort all pairwise centroid distances and find the largest gap between
+        consecutive values. Cut there: pairs below the threshold are the same
+        person; pairs above are different people. Run complete-linkage
+        hierarchical clustering with that distance threshold.
+
+        Works for both small n_sub (e.g. 4 sub-clusters from a 4-person video)
+        and large n_sub (e.g. 78 sub-clusters from a 26-person video with
+        3× over-splitting). Complete linkage prevents chain-merging.
     """
+    from scipy.cluster.hierarchy import linkage as _sp_linkage, fcluster as _sp_fcluster
+    from scipy.spatial.distance import squareform as _sp_squareform
     from sklearn.cluster import AgglomerativeClustering
+
+    # ── Constants ────────────────────────────────────────────────
+    TRUST_THRESHOLD  = 15    # n_sub ≤ this → consider trusting HDBSCAN directly
+    GAP_RATIO_THRESH = 0.30  # gap_ratio < this → no bimodal split → trust HDBSCAN
 
     real_labels = sorted(set(labels) - {-1})
     n_sub = len(real_labels)
-    if n_sub == 0:
-        return labels
-    if n_sub == 1:
+    if n_sub <= 1:
         return labels
 
-    # Build centroid matrix: one row per sub-cluster
+    # ── Build centroid distance matrix ───────────────────────────
     centroids = []
     for rl in real_labels:
         members = embs_n[labels == rl]
         c = members.mean(axis=0)
         nc = np.linalg.norm(c)
         centroids.append(c / nc if nc > 0 else c)
-    cent_arr = np.stack(centroids)                   # (n_sub, 512)
-
-    # Pairwise cosine distance between centroids
+    cent_arr = np.stack(centroids)                        # (n_sub, D)
     cent_dist = np.maximum(
         1.0 - np.clip(cent_arr @ cent_arr.T, -1.0, 1.0), 0.0
     )
     np.fill_diagonal(cent_dist, 0.0)
 
-    # Determine n_clusters to request
+    # ── Known-target path (UNCHANGED) ────────────────────────────
     if n_target is not None:
         n_clusters = min(n_target, n_sub)
+        if n_clusters >= n_sub:
+            print(f"  Stage 2: {n_sub} sub-clusters == target ({n_target}), no merge needed")
+            return labels
         print(f"  Stage 2: merging {n_sub} sub-clusters → {n_clusters} "
               f"(KNOWN_N_PERSONS={n_target}, complete linkage)")
-    else:
-        # Auto: find elbow in the linkage tree
-        # Run with n_clusters=2 to expose the full merge distance sequence,
-        # then pick the cut where the jump ratio is largest.
-        agg_full = AgglomerativeClustering(
-            n_clusters=2, metric="precomputed", linkage="complete"
+        agg = AgglomerativeClustering(
+            n_clusters=n_clusters, metric="precomputed", linkage="complete"
         )
-        agg_full.fit(cent_dist)
-        # distances_ is sorted ascending — last entries are the largest merges
-        merge_dists = agg_full.distances_
-        jumps = merge_dists[1:] / np.maximum(merge_dists[:-1], 1e-6)
-        # Only consider merges in the upper half of the tree
-        half = len(jumps) // 2
-        candidate_jumps = jumps[half:]
-        if candidate_jumps.max() >= MERGE_JUMP_FACTOR:
-            # Cut at the largest jump in the upper half
-            cut_idx = half + int(candidate_jumps.argmax())
-            n_clusters = n_sub - cut_idx - 1
-            n_clusters = max(2, min(n_clusters, n_sub - 1))
-        else:
-            # No clear elbow — fall back to a reasonable fraction
-            n_clusters = max(2, n_sub // 4)
-        print(f"  Stage 2: merging {n_sub} sub-clusters → {n_clusters} "
-              f"(auto-detected, jump_factor={MERGE_JUMP_FACTOR})")
+        meta_labels = agg.fit_predict(cent_dist)
+        label_to_meta = {rl: int(meta_labels[i]) for i, rl in enumerate(real_labels)}
+        new_labels = labels.copy()
+        for i, orig in enumerate(labels):
+            if orig in label_to_meta:
+                new_labels[i] = label_to_meta[orig]
+        return new_labels
 
-    agg = AgglomerativeClustering(
-        n_clusters=n_clusters, metric="precomputed", linkage="complete"
-    )
-    meta_labels = agg.fit_predict(cent_dist)  # maps sub-cluster index → person id
+    # ── Auto-detect path (REWRITTEN) ─────────────────────────────
+    upper = cent_dist[np.triu_indices(n_sub, k=1)]       # all off-diagonal distances
+
+    if len(upper) == 0:
+        return labels
+
+    sorted_dists = np.sort(upper)
+    gaps = np.diff(sorted_dists) if len(sorted_dists) > 1 else np.array([0.0])
+    max_gap      = float(gaps.max())
+    gap_ratio    = max_gap / max(float(sorted_dists.mean()), 1e-6)
+
+    print(f"  Stage 2 (auto): {n_sub} sub-clusters  "
+          f"dist=[{sorted_dists[0]:.3f}..{sorted_dists[-1]:.3f}]  "
+          f"gap_ratio={gap_ratio:.3f}")
+
+    # Phase A: HDBSCAN already found the right number — don't touch it
+    if n_sub <= TRUST_THRESHOLD and gap_ratio < GAP_RATIO_THRESH:
+        print(f"  Stage 2: no bimodal gap detected → trusting HDBSCAN's {n_sub} sub-clusters")
+        # Re-label 0..n_sub-1 (they may not be contiguous after noise rescue)
+        label_remap = {rl: i for i, rl in enumerate(real_labels)}
+        new_labels = labels.copy()
+        for i, orig in enumerate(labels):
+            if orig in label_remap:
+                new_labels[i] = label_remap[orig]
+        return new_labels
+
+    # Phase B: bimodal gap detected → cut at the gap
+    gap_idx   = int(np.argmax(gaps))
+    threshold = (sorted_dists[gap_idx] + sorted_dists[gap_idx + 1]) / 2.0
+
+    print(f"  Stage 2: gap at {sorted_dists[gap_idx]:.3f}→{sorted_dists[gap_idx+1]:.3f}, "
+          f"threshold={threshold:.3f}")
+
+    condensed  = _sp_squareform(cent_dist, checks=False)
+    Z          = _sp_linkage(condensed, method="complete")
+    meta_array = _sp_fcluster(Z, t=threshold, criterion="distance")  # 1-indexed
+    n_clusters = len(set(meta_array))
+    n_clusters = max(2, n_clusters)
+
+    print(f"  Stage 2: merging {n_sub} sub-clusters → {n_clusters} (auto, complete linkage)")
 
     # Map back to original detection labels
-    label_to_meta = {rl: int(meta_labels[i]) for i, rl in enumerate(real_labels)}
+    label_to_meta = {rl: int(meta_array[i]) - 1 for i, rl in enumerate(real_labels)}
     new_labels = labels.copy()
     for i, orig in enumerate(labels):
         if orig in label_to_meta:
             new_labels[i] = label_to_meta[orig]
-        # noise stays -1
-
     return new_labels
 
 
