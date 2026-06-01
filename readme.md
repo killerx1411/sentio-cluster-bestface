@@ -219,36 +219,7 @@ python test_engagement.py "input_videos/my_classroom.mp4" `
 
 ---
 
-## Quick reference — one video end-to-end
-
-```powershell
-# 0. Setup (once): KNOWN_N_PERSONS, AdaFace weights, venvs, video in input_videos/
-
-# 1+2+3 from repo root
-.\run_face_pipeline.ps1 `
-  -Video "profile-clustering\input_videos\my_classroom.mp4" `
-  -Cache "profile-clustering\input_videos\my_classroom_detections.pkl" `
-  -JsonOut "profile-clustering\input_videos\my_classroom_clusters.json"
-
-# 4 engagement
-cd profile-clustering
-.\clustervenv\Scripts\Activate.ps1
-python test_engagement.py "input_videos/my_classroom.mp4" --cache "input_videos/my_classroom_detections.pkl"
-```
-
----
-
-## `run_face_pipeline.py` (single venv only)
-
-Runs steps 1–3 in one Python process. Only use if **both** `requirements.txt` files are installed in the **same** activated venv.
-
-```powershell
-python run_face_pipeline.py profile-clustering/input_videos/my_classroom.mp4 `
-  --cache profile-clustering/input_videos/my_classroom_detections.pkl `
-  --known-n 26
-```
-
-For the normal two-venv setup, prefer `run_face_pipeline.ps1`.
+ 
 
 ---
 
