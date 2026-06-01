@@ -1,0 +1,80 @@
+# =============================================================================
+# sentio-cluster-bestface — face clustering + best-face + engagement
+# =============================================================================
+
+# --- OS & editors ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+*~
+
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg
+
+# --- Virtual environments (never commit) ---
+profile-clustering/clustervenv/
+Best-Face/bestfaceharsh/
+Best-Face/venv/
+Best-Face/.venv/
+**/venv/
+**/.venv/
+mergedvenv/
+
+# --- profile-clustering: runtime data ---
+profile-clustering/input_videos/*
+!profile-clustering/input_videos/.gitkeep
+profile-clustering/cluster_profiles/
+
+# --- Best-Face: runtime outputs ---
+Best-Face/face_registration/database/
+Best-Face/cluster_profiles/
+Best-Face/test_output/
+Best-Face/test_output.zip
+
+# --- Generated pipeline artifacts ---
+profile-clustering/**/*_detections.pkl
+profile-clustering/**/*_clusters.json
+profile-clustering/**/*_engagement.json
+Best-Face/**/*.pkl
+Best-Face/**/*_clusters.json
+
+# --- Videos (user-provided CCTV footage) ---
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.flv
+
+# --- AdaFace (cloned locally) & model weights ---
+profile-clustering/AdaFace/
+profile-clustering/weights/
+profile-clustering/**/*.ckpt
+profile-clustering/**/*.pth
+profile-clustering/**/*.pt
+profile-clustering/**/*.onnx
+profile-clustering/**/*.whl
+Best-Face/weights/
+Best-Face/AdaFace/
+Best-Face/**/*.ckpt
+Best-Face/**/*.pth
+
+# --- Logs & temp ---
+*.log
+*.tmp
+*.temp
