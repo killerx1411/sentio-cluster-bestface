@@ -1,0 +1,113 @@
+# =============================================================================
+# Best-Face + combined profile-clustering pipeline
+# =============================================================================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# --- Virtual environments (never commit) ---
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+bestfaceharsh/
+clustervenv/
+
+# --- Testing & coverage ---
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+pytest.ini
+
+# --- Secrets & local config ---
+.env
+.env.*
+!.env.example
+
+# --- Best-Face runtime outputs ---
+face_registration/database/
+database/
+test_output/
+test_output.zip
+
+# --- Clustering exports used for local testing ---
+cluster_profiles/
+
+# --- Large / generated pipeline artifacts ---
+*.pkl
+*_detections.pkl
+*_clusters.json
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.flv
+
+# --- Model weights & binaries (download locally) ---
+weights/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.whl
+AdaFace/
+
+# --- Logs & temp ---
+*.log
+*.tmp
+*.temp
+*.swp
+*~
+
+# --- Editors & IDEs ---
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# --- OS ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
