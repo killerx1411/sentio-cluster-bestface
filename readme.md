@@ -161,48 +161,115 @@ cd ..
 
 
 
-manually in the **profile-clustering** venv:
+## Pipeline Execution
+
+### Step 1 — Face Clustering
+
+Activate the `profile-clustering` virtual environment and run the clustering pipeline.
 
 ```powershell
 cd profile-clustering
+
 .\clustervenv\Scripts\Activate.ps1
 
-python export_for_bestface.py "input_videos/my_classroom.mp4" `
-  --cache "input_videos/my_classroom_detections.pkl" `
-  --out "input_videos/my_classroom_clusters.json"
+python face_cluster.py "input_videos\my_classroom.mp4"
 ```
 
-- First run **without** a `.pkl` cache runs full face detection (slow).  
-- Later runs reuse `*_detections.pkl` unless you pass `--force-redetect`.  
-- Optional contact sheets: `python export_cluster_profiles.py input_videos/my_classroom.mp4 --cache input_videos/my_classroom_detections.pkl`
+**Output:**
 
-### Step 3 — Best-face registration
+* Face detections
+* Face embeddings
+* `input_videos\my_classroom_detections.pkl` (cache file)
 
- in the **Best-Face** venv:
+> The first run performs full face detection and embedding extraction, which may take some time. Subsequent runs can reuse the generated `.pkl` cache.
+
+---
+
+### Step 2 — Generate Cluster Profiles
+
+Create contact sheets and representative face profiles for each detected cluster.
 
 ```powershell
-cd Best-Face\face_registration
+python export_cluster_profiles.py "input_videos\my_classroom.mp4" `
+  --cache "input_videos\my_classroom_detections.pkl"
+```
+
+**Output:**
+
+* Cluster contact sheets
+* Representative face crops for each detected individual
+
+---
+
+### Step 3 — Engagement Analysis
+
+Run engagement analysis using the cached detections and current clustering configuration.
+
+```powershell
+python test_engagement.py "input_videos\my_classroom.mp4" `
+  --cache "input_videos\my_classroom_detections.pkl"
+```
+
+**Output:**
+
+* `input_videos\my_classroom_engagement.json`
+
+The generated JSON contains:
+
+* Per-person engagement scores
+* Engagement levels
+* Attention trends
+* Participation metrics
+* Emotion and vitality indicators
+
+---
+
+### Step 4 — Export Clusters for Best-Face Selection
+
+Generate a JSON file containing cluster information for best-face registration.
+
+```powershell
+python export_for_bestface.py "input_videos\my_classroom.mp4" `
+  --cache "input_videos\my_classroom_detections.pkl" `
+  --out "input_videos\my_classroom_clusters.json"
+```
+
+**Output:**
+
+* `input_videos\my_classroom_clusters.json`
+
+---
+
+### Step 5 — Best-Face Registration
+
+Switch to the Best-Face project and register the highest-quality face for each detected person.
+
+```powershell
+cd ..\Best-Face\face_registration
+
 ..\..\Best-Face\bestfaceharsh\Scripts\python.exe scripts\register_from_json.py `
   "..\..\profile-clustering\input_videos\my_classroom_clusters.json"
 ```
 
-**Output:** `Best-Face/face_registration/database/person_0001/best_face.jpg`, `metadata.json`, …
+**Output:**
 
-### Step 4 — Engagement analysis
-
-Still in **profile-clustering** venv (reuses detection cache; re-runs clustering with current `KNOWN_N_PERSONS`):
-
-```powershell
-cd profile-clustering
-.\clustervenv\Scripts\Activate.ps1
-
-python test_engagement.py "input_videos/my_classroom.mp4" `
-  --cache "input_videos/my_classroom_detections.pkl"
+```
+Best-Face/
+└── face_registration/
+    └── database/
+        ├── person_0001/
+        │   ├── best_face.jpg
+        │   └── metadata.json
+        ├── person_0002/
+        │   ├── best_face.jpg
+        │   └── metadata.json
+        └── ...
 ```
 
-**Output:** `profile-clustering/input_videos/my_classroom_engagement.json` (per-person engagement scores, levels, trends).
+Each registered person receives:
 
----
+* `best_face.jpg` – highest-quality face image
+* `metadata.json` – associated registration metadata
 
  
 
